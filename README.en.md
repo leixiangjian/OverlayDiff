@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![HTML5](https://img.shields.io/badge/HTML-5-E34F26?logo=html5&logoColor=white)]()
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)]()
-
+![](2036664572.jpg)
 OverlayDiff is a browser-based multi-image overlay comparison tool that supports layer stacking, real-time difference heatmaps, annotations, and focus viewing. No installation required—just open and use. It is ideal for engineering drawings, design mockups, version iterations, and other scenarios requiring quick difference comparison and review annotation.
 
 ## Description
