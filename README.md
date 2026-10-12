@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![HTML5](https://img.shields.io/badge/HTML-5-E34F26?logo=html5&logoColor=white)]()
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)]()
-
+![](2036664572.jpg)
 OverlayDiff 是一个基于浏览器的多图叠加对比工具，支持图层叠加、实时差异热力图、批注标注与焦点查看。无需安装，打开即用，适合工程图纸、设计稿、版本迭代等场景下的快速差异比对与整改标注。
 
 ## 项目描述
