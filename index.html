@@ -1,0 +1,2046 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>多图叠加对比 · 实时差异 · 批注</title>
+<style>
+  :root{
+    --bg:#0f1116; --panel:#171a22; --panel-2:#1f2330; --line:#2b3040;
+    --text:#e7e9f0; --muted:#8b93a7; --accent:#4c8dff; --accent-2:#22d3a7; --danger:#ff5c7a;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text);
+    display:flex; flex-direction:column; overflow:hidden; font-size:13px;
+  }
+  header{
+    height:52px; flex:0 0 52px;
+    display:flex; align-items:center; gap:10px;
+    padding:0 14px;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    overflow-x:auto;
+  }
+  header::-webkit-scrollbar{height:0;}
+  .brand{font-weight:700;letter-spacing:.5px;font-size:13.5px;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
+  .divider{width:1px;height:24px;background:var(--line);flex:0 0 1px;}
+  .seg{display:flex;background:var(--panel-2);border-radius:8px;padding:3px;gap:2px;flex:0 0 auto;}
+  .seg button{
+    border:0;background:transparent;color:var(--muted);
+    padding:6px 11px;border-radius:6px;cursor:pointer;
+    font-size:12.5px;font-family:inherit;white-space:nowrap;transition:.15s;
+  }
+  .seg button:hover{color:var(--text);background:rgba(255,255,255,.05);}
+  .seg button.active{background:var(--accent);color:#fff;font-weight:600;}
+  .btn{
+    border:1px solid var(--line);background:var(--panel-2);color:var(--text);
+    padding:6px 12px;border-radius:7px;cursor:pointer;
+    font-size:12.5px;font-family:inherit;transition:.15s;white-space:nowrap;flex:0 0 auto;
+  }
+  .btn:hover{border-color:#3d4557;background:#262b3a;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+  .btn.primary:hover{background:#3f7ce8;}
+  .btn.ghost{background:transparent;}
+  .btn.on{
+    background:rgba(34,211,167,.16);
+    border-color:rgba(34,211,167,.5);
+    color:#7ce9cd;font-weight:600;
+  }
+  .btn.live-on{
+    background:linear-gradient(135deg,#ff8800,#ff2844);
+    border-color:#ff5c3a;color:#fff;font-weight:600;
+  }
+  .btn.live-on:hover{filter:brightness(1.1);}
+  .btn.ann-on{
+    background:linear-gradient(135deg,#4c8dff,#a855f7);
+    border-color:#7c6bff;color:#fff;font-weight:600;
+  }
+  .btn.ann-on:hover{filter:brightness(1.1);}
+  .btn:disabled, .btn.disabled{
+    opacity:.4; cursor:not-allowed; pointer-events:none;
+  }
+  .spacer{flex:1;min-width:8px;}
+
+  .dim-ctrl{
+    display:flex;align-items:center;gap:7px;
+    padding:5px 10px;border-radius:7px;
+    background:var(--panel-2);border:1px solid var(--line);
+    font-size:12px;color:var(--muted);flex:0 0 auto;transition:.15s;
+  }
+  .dim-ctrl.disabled{opacity:.4;pointer-events:none;}
+  .dim-ctrl input[type=range]{
+    width:70px;-webkit-appearance:none;appearance:none;height:4px;
+    background:#2c3242;border-radius:3px;outline:none;cursor:pointer;
+  }
+  .dim-ctrl input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:2px solid #171a22;
+  }
+  .dim-ctrl input[type=range]::-moz-range-thumb{
+    width:10px;height:10px;border-radius:50%;background:var(--accent);
+    cursor:pointer;border:2px solid #171a22;
+  }
+  .dim-ctrl b{color:var(--text);font-weight:600;font-size:11.5px;min-width:30px;text-align:right;}
+
+  main{flex:1;display:flex;min-height:0;}
+  aside{
+    width:300px;flex:0 0 300px;background:var(--panel);
+    border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;
+  }
+  .side-head{padding:12px;border-bottom:1px solid var(--line);display:flex;gap:8px;}
+  .side-head .btn{flex:1;text-align:center;}
+
+  .side-tabs{
+    display:flex; background:var(--panel-2);
+    border-bottom:1px solid var(--line);
+    padding:0 6px;
+  }
+  .side-tabs button{
+    flex:1; border:0; background:transparent; color:var(--muted);
+    padding:10px 8px; cursor:pointer; font-size:12.5px; font-family:inherit;
+    border-bottom:2px solid transparent; transition:.15s;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .side-tabs button:hover{color:var(--text);}
+  .side-tabs button.active{color:var(--accent); border-bottom-color:var(--accent); font-weight:600;}
+  .side-tabs .cnt{
+    background:rgba(76,141,255,.18); color:#a9c8ff;
+    padding:0 6px; border-radius:8px; font-size:10.5px; font-weight:700;
+    min-width:18px; text-align:center;
+  }
+  .side-tabs button.active .cnt{background:var(--accent); color:#fff;}
+
+  .tab-panel{flex:1; min-height:0; display:none; flex-direction:column;}
+  .tab-panel.active{display:flex;}
+
+  .layer-list{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .layer-list::-webkit-scrollbar,.ann-list::-webkit-scrollbar{width:8px;}
+  .layer-list::-webkit-scrollbar-thumb,.ann-list::-webkit-scrollbar-thumb{background:#2c3242;border-radius:4px;}
+  .empty-tip{color:var(--muted);text-align:center;padding:40px 16px;line-height:1.9;font-size:12.5px;}
+
+  .layer-item{
+    background:var(--panel-2);border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;transition:.15s;position:relative;
+  }
+  .layer-item.active{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px rgba(76,141,255,.4),0 4px 14px rgba(76,141,255,.12);
+  }
+  .layer-item.active::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);
+  }
+  .layer-item.dimmed .thumb{opacity:.45;}
+  .layer-item.dimmed .layer-title{color:var(--muted);}
+
+  .layer-head{display:flex;align-items:center;gap:8px;padding:8px;}
+  .thumb{
+    width:38px;height:38px;object-fit:cover;border-radius:6px;
+    background:#0c0e13;border:1px solid var(--line);flex:0 0 38px;transition:opacity .18s;
+  }
+  .layer-title{
+    flex:1;min-width:0;font-size:12.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .18s;
+  }
+  .badge-focus{
+    display:inline-block;font-size:9px;font-weight:700;
+    background:rgba(76,141,255,.22);color:#a9c8ff;
+    padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;letter-spacing:.5px;
+  }
+  .btn-vis{
+    width:24px;height:24px;flex:0 0 24px;border:0;border-radius:5px;
+    background:transparent;color:var(--muted);cursor:pointer;font-size:12px;
+    display:flex;align-items:center;justify-content:center;padding:0;
+  }
+  .btn-vis.on{color:var(--accent-2);}
+  .btn-vis:hover{background:rgba(255,255,255,.07);}
+  .layer-order{display:flex;gap:2px;}
+  .layer-order button{
+    width:22px;height:22px;border:0;border-radius:5px;background:transparent;
+    color:var(--muted);cursor:pointer;font-size:9px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .layer-order button:hover{background:rgba(255,255,255,.08);color:var(--text);}
+  .layer-order button[data-act="del"]:hover{background:rgba(255,92,122,.18);color:var(--danger);}
+
+  .layer-body{
+    padding:0 10px 10px;display:flex;flex-direction:column;gap:7px;
+    border-top:1px solid rgba(255,255,255,.04);padding-top:9px;
+  }
+  .row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+  .row > span:first-child{width:30px;flex:0 0 30px;}
+  .row b{width:38px;text-align:right;color:var(--text);font-weight:500;font-size:11.5px;}
+  .row select{
+    flex:1;background:#141821;color:var(--text);border:1px solid var(--line);
+    border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit;outline:none;cursor:pointer;
+  }
+  .row input[type=range]{
+    flex:1;-webkit-appearance:none;appearance:none;height:4px;
+    background:#2c3242;border-radius:3px;outline:none;cursor:pointer;
+  }
+  .row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:2px solid #171a22;
+  }
+  .row input[type=range]::-moz-range-thumb{
+    width:11px;height:11px;border-radius:50%;background:var(--accent);
+    cursor:pointer;border:2px solid #171a22;
+  }
+
+  .ann-list{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .ann-item{
+    background:var(--panel-2);border:1px solid var(--line);
+    border-radius:9px;padding:10px;cursor:pointer;transition:.15s;
+    display:flex;gap:9px;align-items:flex-start;
+  }
+  .ann-item:hover{border-color:#3d4557;background:#262b3a;}
+  .ann-item.active{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px rgba(76,141,255,.35);
+  }
+  .ann-badge{
+    width:22px;height:22px;flex:0 0 22px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#fff;
+  }
+  .ann-body{flex:1;min-width:0;}
+  .ann-text{
+    font-size:12.5px;line-height:1.55;color:var(--text);
+    word-break:break-word;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .ann-meta{
+    margin-top:5px;font-size:10.5px;color:var(--muted);
+    display:flex;align-items:center;gap:6px;
+  }
+  .ann-layer-tag{
+    background:rgba(76,141,255,.14); color:#a9c8ff;
+    padding:1px 6px; border-radius:3px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:120px;
+  }
+  .ann-del{
+    width:22px;height:22px;flex:0 0 22px;border:0;border-radius:5px;
+    background:transparent;color:var(--muted);cursor:pointer;font-size:11px;padding:0;
+  }
+  .ann-del:hover{background:rgba(255,92,122,.18); color:var(--danger);}
+
+  .canvas-wrap{
+    position:relative;flex:1;min-width:0;overflow:hidden;
+    background-color:#15171d;
+    background-image:
+      linear-gradient(45deg,#1c1f27 25%,transparent 25%),
+      linear-gradient(-45deg,#1c1f27 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#1c1f27 75%),
+      linear-gradient(-45deg,transparent 75%,#1c1f27 75%);
+    background-size:22px 22px;
+    background-position:0 0,0 11px,11px -11px,-11px 0;
+  }
+  .canvas-wrap.drag::after{
+    content:"松开以添加图片";
+    position:absolute;inset:12px;border:2px dashed var(--accent);
+    border-radius:12px;background:rgba(76,141,255,.08);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--accent);font-size:16px;font-weight:600;pointer-events:none;z-index:5;
+  }
+  #canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  #canvas.ann-mode{cursor:crosshair;}
+
+  .hud{
+    position:absolute;left:12px;bottom:12px;z-index:3;
+    background:rgba(15,17,22,.82);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;font-size:11.5px;color:var(--muted);
+    display:flex;gap:12px;align-items:center;pointer-events:none;
+  }
+  .hud b{color:#e7e9f0;font-weight:600;}
+  .hud kbd{
+    background:#2a3040;border-radius:4px;padding:1px 5px;
+    font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--text);
+  }
+  .hud .focus-tag{
+    color:#a9c8ff;background:rgba(76,141,255,.14);
+    border:1px solid rgba(76,141,255,.28);
+    padding:1px 7px;border-radius:5px;font-size:11px;
+    max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .hud .live-dot{
+    display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:#ff2844;margin-right:4px;
+    box-shadow:0 0 8px #ff2844;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  .hud .blend-dot{
+    display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:#22d3a7;margin-right:4px;
+    box-shadow:0 0 8px #22d3a7;
+  }
+  .hud .ann-dot{
+    display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:#a855f7;margin-right:4px;
+    box-shadow:0 0 8px #a855f7;
+  }
+  @keyframes pulse{50%{opacity:.35;}}
+
+  .mode-hint{
+    position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    background:rgba(15,17,22,.82);backdrop-filter:blur(8px);
+    border:1px solid var(--line);border-radius:20px;
+    padding:5px 14px;font-size:11.5px;color:var(--muted);
+    pointer-events:none;z-index:3;transition:color .2s,border-color .2s;
+    max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .mode-hint.warn{color:#ff5c7a;border-color:rgba(255,92,122,.5);}
+  .mode-hint.ann{
+    color:#a9c8ff;
+    border-color:rgba(124,107,255,.5);
+    background:rgba(76,141,255,.14);
+  }
+
+  .diff-legend{
+    position:absolute;right:12px;bottom:12px;z-index:4;
+    background:rgba(15,17,22,.92);backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;font-size:11.5px;color:var(--muted);
+    width:222px;display:flex;flex-direction:column;gap:9px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .diff-legend[hidden]{display:none;}
+  .legend-title{
+    font-weight:700;color:var(--text);font-size:11.5px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .legend-title::before{
+    content:"";width:8px;height:8px;border-radius:2px;
+    background:linear-gradient(135deg,#ff8800,#ff2844);
+  }
+  .legend-row{display:flex;align-items:center;gap:6px;font-size:11px;}
+  .swatch{width:12px;height:12px;border-radius:3px;flex:0 0 12px;}
+  .swatch.warm{background:linear-gradient(135deg,#ffe600,#ff2844);}
+  .swatch.cold{background:linear-gradient(135deg,#00e5ff,#a855f7);}
+  .legend-bar{
+    height:9px;border-radius:5px;
+    background:linear-gradient(to right,#ffe600 0%,#ff8800 50%,#ff2844 100%);
+  }
+  .legend-bar-cold{
+    height:9px;border-radius:5px;
+    background:linear-gradient(to right,#00e5ff 0%,#3b82f6 50%,#a855f7 100%);
+  }
+  .legend-labels{display:flex;justify-content:space-between;font-size:10px;margin-top:-5px;}
+  .legend-threshold{
+    display:flex;flex-direction:column;gap:5px;
+    padding-top:6px;border-top:1px solid rgba(255,255,255,.07);
+  }
+  .legend-threshold label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+  .legend-threshold label b{color:var(--text);font-weight:600;}
+  .legend-threshold input[type=range]{
+    width:100%;-webkit-appearance:none;appearance:none;height:4px;
+    background:#2c3242;border-radius:3px;outline:none;cursor:pointer;
+  }
+  .legend-threshold input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:linear-gradient(135deg,#ff8800,#ff2844);cursor:pointer;
+    border:2px solid #171a22;
+  }
+  .legend-threshold input[type=range]::-moz-range-thumb{
+    width:11px;height:11px;border-radius:50%;
+    background:linear-gradient(135deg,#ff8800,#ff2844);cursor:pointer;
+    border:2px solid #171a22;
+  }
+  .legend-base{
+    font-size:11px;color:#a9c8ff;
+    padding-top:6px;border-top:1px solid rgba(255,255,255,.07);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .legend-base b{color:#fff;font-weight:600;}
+
+  .ann-modal{
+    position:absolute;inset:0;z-index:30;
+    background:rgba(0,0,0,.5);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .ann-modal[hidden]{display:none;}
+  .ann-modal-card{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;width:400px;max-width:92%;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .ann-modal-head{
+    padding:12px 14px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;
+    font-weight:600;font-size:13px;
+  }
+  .ann-close{
+    border:0;background:transparent;color:var(--muted);
+    font-size:20px;cursor:pointer;line-height:1;padding:0 4px;
+  }
+  .ann-close:hover{color:var(--text);}
+  #annText{
+    background:var(--panel-2);border:1px solid var(--line);
+    color:var(--text);border-radius:8px;
+    padding:10px;margin:14px;font-family:inherit;font-size:13px;
+    min-height:110px;resize:vertical;outline:none;line-height:1.6;
+  }
+  #annText:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(76,141,255,.15);}
+  .ann-modal-foot{
+    padding:12px 14px;border-top:1px solid var(--line);
+    display:flex;gap:8px;align-items:center;
+  }
+  .ann-modal-foot .btn.ghost[hidden]{display:none;}
+
+  input[type=file]{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot"></span>多图叠加对比</div>
+  <div class="divider"></div>
+
+  <div class="seg" id="modeSeg">
+    <button data-mode="overlay" class="active">叠加</button>
+    <button data-mode="side">并排</button>
+    <button data-mode="slider">滑动</button>
+    <button data-mode="blink">闪烁</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <button class="btn on" id="focusToggle" title="仅在「差异热力图」开启时生效，用于突出焦点图层">聚焦 ON</button>
+  <div class="dim-ctrl" id="dimCtrl">
+    <span>淡化</span>
+    <input type="range" id="dimSlider" min="0.02" max="0.6" step="0.01" value="0.12">
+    <b id="dimVal">12%</b>
+  </div>
+
+  <button class="btn" id="liveToggle" title="开启后显示像素差异热力图；关闭时两张图纸以半透明叠加，便于肉眼对比">差异热力图 OFF</button>
+
+  <div class="divider"></div>
+  <button class="btn" id="annotateToggle" title="开启后可在画布上圈选批注区域">✏ 批注 OFF</button>
+
+  <div class="spacer"></div>
+
+  <button class="btn ghost" id="btnReset">重置视图</button>
+  <button class="btn ghost" id="btnFit">适应窗口</button>
+</header>
+
+<main>
+  <aside>
+    <div class="side-head">
+      <button class="btn primary" id="btnAdd">＋ 添加图片</button>
+      <button class="btn" id="btnDemo">示例</button>
+    </div>
+
+    <div class="side-tabs">
+      <button data-tab="layers" class="active">图层 <span class="cnt" id="layerCnt">0</span></button>
+      <button data-tab="anns">批注 <span class="cnt" id="annCnt">0</span></button>
+    </div>
+
+    <div class="tab-panel active" id="panelLayers">
+      <div class="layer-list" id="layerList"></div>
+    </div>
+
+    <div class="tab-panel" id="panelAnns">
+      <div class="ann-list" id="annList"></div>
+    </div>
+  </aside>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="canvas"></canvas>
+    <div class="mode-hint" id="modeHint"></div>
+    <div class="hud">
+      <span>缩放 <b id="hudZoom">100%</b></span>
+      <span>图层 <b id="hudCount">0</b></span>
+      <span id="hudFocusWrap" style="display:none;">焦点 <span class="focus-tag" id="hudFocus"></span></span>
+      <span id="hudLive" style="display:none;"><span class="live-dot"></span>差异热力图</span>
+      <span id="hudBlend" style="display:none;"><span class="blend-dot"></span>半透明叠加</span>
+      <span id="hudAnn" style="display:none;"><span class="ann-dot"></span>批注模式</span>
+      <span><kbd>左键</kbd> 拖图层 <kbd>中键</kbd> 平移</span>
+    </div>
+
+    <div class="diff-legend" id="diffLegend" hidden>
+      <div class="legend-title">实时差异热力图</div>
+      <div class="legend-row"><span class="swatch warm"></span>变亮区域（暖色）</div>
+      <div class="legend-bar"></div>
+      <div class="legend-labels"><span>差异小</span><span>差异大</span></div>
+      <div class="legend-row" style="margin-top:5px;"><span class="swatch cold"></span>变暗区域（冷色）</div>
+      <div class="legend-bar-cold"></div>
+      <div class="legend-labels"><span>差异小</span><span>差异大</span></div>
+      <div class="legend-threshold">
+        <label>忽略阈值 <b id="thVal">8%</b></label>
+        <input type="range" id="thSlider" min="0" max="0.5" step="0.01" value="0.08">
+      </div>
+      <div class="legend-base">基准层：<b id="legendBase">—</b></div>
+    </div>
+
+    <div class="ann-modal" id="annModal" hidden>
+      <div class="ann-modal-card">
+        <div class="ann-modal-head">
+          <span id="annModalTitle">新建批注</span>
+          <button class="ann-close" id="annCloseBtn">×</button>
+        </div>
+        <textarea id="annText" placeholder="请输入整改内容、问题描述或备注..."></textarea>
+        <div class="ann-modal-foot">
+          <button class="btn ghost" id="annDeleteBtn" style="color:#ff5c7a;" hidden>删除批注</button>
+          <div class="spacer"></div>
+          <button class="btn" id="annCancelBtn">取消</button>
+          <button class="btn primary" id="annSaveBtn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<input type="file" id="fileInput" accept="image/*" multiple />
+
+<script>
+(() => {
+  'use strict';
+
+  const state = {
+    layers: [],
+    annotations: [],
+    mode: 'overlay',
+    activeId: null,
+    focusMode: true,
+    dimFactor: 0.12,
+    liveDiff: false,           // 差异热力图默认关闭
+    diffImage: null,
+    diffThreshold: 0.08,
+    diffBaseName: '—',
+    annotating: false,
+    selectedAnnId: null,
+    drawingAnn: null,
+    view: { x: 0, y: 0, zoom: 1 },
+    slider: 0.5,
+    blinkOn: true,
+    dragging: null,
+    dragStart: null,
+    _diffRAF: null,
+    _editAnnId: null,
+    _editGeometry: null,
+  };
+
+  let uid = 0;
+  let annUid = 0;
+  let blinkTimer = null;
+  let hintTimer = null;
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const canvasWrap = document.getElementById('canvasWrap');
+  const layerListEl = document.getElementById('layerList');
+  const annListEl = document.getElementById('annList');
+  const fileInput = document.getElementById('fileInput');
+  const modeHintEl = document.getElementById('modeHint');
+  const hudZoom = document.getElementById('hudZoom');
+  const hudCount = document.getElementById('hudCount');
+  const hudFocusWrap = document.getElementById('hudFocusWrap');
+  const hudFocus = document.getElementById('hudFocus');
+  const hudLive = document.getElementById('hudLive');
+  const hudBlend = document.getElementById('hudBlend');
+  const hudAnn = document.getElementById('hudAnn');
+  const diffLegendEl = document.getElementById('diffLegend');
+  const legendBaseEl = document.getElementById('legendBase');
+  const thSlider = document.getElementById('thSlider');
+  const thVal = document.getElementById('thVal');
+  const focusToggle = document.getElementById('focusToggle');
+  const dimCtrl = document.getElementById('dimCtrl');
+  const dimSlider = document.getElementById('dimSlider');
+  const dimVal = document.getElementById('dimVal');
+  const liveToggle = document.getElementById('liveToggle');
+  const annotateToggle = document.getElementById('annotateToggle');
+  const layerCntEl = document.getElementById('layerCnt');
+  const annCntEl = document.getElementById('annCnt');
+  const annModal = document.getElementById('annModal');
+  const annModalTitle = document.getElementById('annModalTitle');
+  const annTextEl = document.getElementById('annText');
+  const annDeleteBtn = document.getElementById('annDeleteBtn');
+
+  const ANN_COLORS = ['#ff5c7a', '#ffa726', '#4c8dff', '#22d3a7', '#a855f7', '#f472b6', '#22c1c3'];
+
+  // 差异热力图关闭时，上层图层的默认叠加透明度（保证两张图都能看到）
+  const OVERLAY_ALPHA = 0.55;
+
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  function heatColor(t, warm) {
+    t = clamp(t, 0, 1);
+    if (warm) {
+      if (t < 0.5) {
+        const k = t / 0.5;
+        return [255, Math.round(230 + (136 - 230) * k), 0];
+      } else {
+        const k = (t - 0.5) / 0.5;
+        return [255, Math.round(136 + (40 - 136) * k), Math.round(68 * k)];
+      }
+    } else {
+      if (t < 0.5) {
+        const k = t / 0.5;
+        return [Math.round(59 * k), Math.round(229 + (130 - 229) * k), Math.round(255 - 9 * k)];
+      } else {
+        const k = (t - 0.5) / 0.5;
+        return [
+          Math.round(59 + (168 - 59) * k),
+          Math.round(130 + (85 - 130) * k),
+          Math.round(246 + k),
+        ];
+      }
+    }
+  }
+
+  function hexToRgba(hex, a) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  /* ========================================================
+   *  实时差异计算
+   * ======================================================== */
+  function computeDiffRealtime(maxDim) {
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    if (!W || !H) { state.diffImage = null; return; }
+
+    const visible = state.layers.filter(l => l.visible && l.img && l.img.naturalWidth > 0);
+    if (visible.length < 2) {
+      state.diffImage = null;
+      state.diffBaseName = '—';
+      return;
+    }
+
+    const scale = Math.min(1, maxDim / Math.max(W, H));
+    const DW = Math.max(1, Math.round(W * scale));
+    const DH = Math.max(1, Math.round(H * scale));
+
+    const dc = state._diffCanvas || (state._diffCanvas = document.createElement('canvas'));
+    if (dc.width !== DW || dc.height !== DH) {
+      dc.width = DW; dc.height = DH;
+    }
+    const dctx = dc.getContext('2d', { willReadFrequently: true });
+    dctx.clearRect(0, 0, DW, DH);
+
+    const base = visible[0];
+    const rb = fitRect(base, W, H);
+    dctx.drawImage(base.img, rb.x * scale, rb.y * scale, rb.w * scale, rb.h * scale);
+    const baseData = dctx.getImageData(0, 0, DW, DH).data;
+
+    const n = DW * DH;
+    const maxDiff = new Float32Array(n);
+    const signArr = new Int8Array(n);
+
+    for (let k = 1; k < visible.length; k++) {
+      const layer = visible[k];
+      dctx.clearRect(0, 0, DW, DH);
+      const r = fitRect(layer, W, H);
+      dctx.drawImage(layer.img, r.x * scale, r.y * scale, r.w * scale, r.h * scale);
+      const d = dctx.getImageData(0, 0, DW, DH).data;
+
+      for (let p = 0; p < n; p++) {
+        const i = p * 4;
+        const a1 = baseData[i + 3], a2 = d[i + 3];
+        if (a1 < 8 || a2 < 8) continue;
+
+        const dr = d[i] - baseData[i];
+        const dg = d[i + 1] - baseData[i + 1];
+        const db = d[i + 2] - baseData[i + 2];
+        const dist = Math.sqrt(dr * dr + dg * dg + db * db) / 441.6729559300637;
+
+        if (dist > maxDiff[p]) {
+          maxDiff[p] = dist;
+          const l1 = 0.299 * baseData[i] + 0.587 * baseData[i + 1] + 0.114 * baseData[i + 2];
+          const l2 = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          signArr[p] = l2 >= l1 ? 1 : -1;
+        }
+      }
+    }
+
+    const out = dctx.createImageData(DW, DH);
+    const od = out.data;
+    const threshold = state.diffThreshold;
+    const range = Math.max(0.001, 1 - threshold);
+
+    for (let p = 0; p < n; p++) {
+      const v = maxDiff[p];
+      if (v < threshold) { od[p * 4 + 3] = 0; continue; }
+      const t = Math.min(1, (v - threshold) / range);
+      const col = heatColor(t, signArr[p] >= 0);
+      od[p * 4]     = col[0];
+      od[p * 4 + 1] = col[1];
+      od[p * 4 + 2] = col[2];
+      od[p * 4 + 3] = Math.round(90 + 165 * Math.pow(t, 0.65));
+    }
+    dctx.putImageData(out, 0, 0);
+
+    state.diffImage = dc;
+    state.diffBaseName = base.name;
+  }
+
+  function scheduleDiffUpdate(highQuality) {
+    if (!state.liveDiff || state.mode !== 'overlay') return;
+    if (state._diffRAF) cancelAnimationFrame(state._diffRAF);
+    state._diffRAF = requestAnimationFrame(() => {
+      state._diffRAF = null;
+      computeDiffRealtime(highQuality ? 1200 : 400);
+      updateLegend(true);
+      render();
+    });
+  }
+
+  function scheduleFinalDiff() {
+    if (!state.liveDiff || state.mode !== 'overlay') return;
+    if (state._diffRAF) cancelAnimationFrame(state._diffRAF);
+    state._diffRAF = requestAnimationFrame(() => {
+      state._diffRAF = null;
+      computeDiffRealtime(1200);
+      updateLegend(true);
+      render();
+    });
+  }
+
+  function updateLegend(show) {
+    const hasDiff = state.liveDiff && state.diffImage && state.mode === 'overlay';
+    diffLegendEl.hidden = !(show && hasDiff);
+    if (hasDiff) legendBaseEl.textContent = state.diffBaseName;
+  }
+
+  function showHint(text) {
+    modeHintEl.textContent = text;
+    modeHintEl.classList.add('warn');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      modeHintEl.classList.remove('warn');
+      render();
+    }, 2400);
+  }
+
+  /* ========================================================
+   *  聚焦控件可用性：仅在差异热力图开启 + 叠加模式时可用
+   * ======================================================== */
+  function updateFocusCtrlState() {
+    const effective = state.liveDiff && state.mode === 'overlay';
+    focusToggle.disabled = !effective;
+    focusToggle.classList.toggle('disabled', !effective);
+    dimCtrl.classList.toggle('disabled', !effective);
+  }
+
+  /* ========================================================
+   *  渲染
+   * ======================================================== */
+  function render() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.max(1, Math.round(rect.width));
+    const H = Math.max(1, Math.round(rect.height));
+
+    if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+    }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    const layers = state.layers.filter(l => l.visible && l.img && l.img.naturalWidth > 0);
+
+    hudZoom.textContent = Math.round(state.view.zoom * 100) + '%';
+    hudCount.textContent = String(state.layers.length);
+
+    const focusLayer = layers.find(l => l.id === state.activeId);
+    const showFocus = state.liveDiff
+      && focusLayer && state.focusMode
+      && layers.length > 1 && state.mode === 'overlay';
+    if (showFocus) {
+      hudFocusWrap.style.display = '';
+      hudFocus.textContent = focusLayer.name;
+    } else {
+      hudFocusWrap.style.display = 'none';
+    }
+
+    const liveActive = state.liveDiff && state.mode === 'overlay' && layers.length >= 2;
+    hudLive.style.display = liveActive ? '' : 'none';
+
+    // 差异热力图关闭且叠加模式 + 多图层时 → 显示「半透明叠加」提示
+    const blendActive = !state.liveDiff && state.mode === 'overlay' && layers.length >= 2;
+    hudBlend.style.display = blendActive ? '' : 'none';
+
+    hudAnn.style.display = state.annotating ? '' : 'none';
+
+    if (!modeHintEl.classList.contains('warn')) updateModeHint(layers.length);
+
+    if (!layers.length) {
+      drawEmptyHint(W, H);
+      return;
+    }
+
+    switch (state.mode) {
+      case 'side':   renderSideBySide(layers, W, H); break;
+      case 'slider': renderSlider(layers, W, H);     break;
+      case 'blink':  renderBlink(layers, W, H);      break;
+      default:       renderStack(layers, W, H);
+    }
+  }
+
+  function renderStack(layers, W, H) {
+    // ★ 关键：焦点淡化仅在「差异热力图」开启时才应用
+    const applyFocus = state.liveDiff
+      && state.focusMode
+      && state.activeId
+      && layers.length > 1;
+
+    // ★ 差异热力图关闭时，非底层图层用半透明渲染，保证叠加对比可见
+    const useBlendOverlay = !state.liveDiff && layers.length >= 2;
+
+    ctx.save();
+    applyView();
+
+    layers.forEach((layer, idx) => {
+      const r = fitRect(layer, W, H);
+      ctx.save();
+
+      let alpha = layer.opacity;
+
+      if (applyFocus && layer.id !== state.activeId) {
+        // 差异热力图 ON：非焦点图层重度淡化，突出焦点
+        alpha = layer.opacity * state.dimFactor;
+      } else if (useBlendOverlay && idx > 0) {
+        // 差异热力图 OFF：非底层图层半透明叠加，让两张图都能看到
+        alpha = layer.opacity * OVERLAY_ALPHA;
+      }
+
+      ctx.globalAlpha = alpha;
+      ctx.globalCompositeOperation = layer.blendMode || 'normal';
+      ctx.drawImage(layer.img, r.x, r.y, r.w, r.h);
+      ctx.restore();
+    });
+
+    // 差异热力图叠加
+    if (state.liveDiff && state.diffImage) {
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(state.diffImage, 0, 0, W, H);
+      ctx.restore();
+    }
+
+    renderAnnotations(layers, W, H);
+
+    if (state.drawingAnn) {
+      const d = state.drawingAnn;
+      const x = Math.min(d.startX, d.curX);
+      const y = Math.min(d.startY, d.curY);
+      const w = Math.abs(d.curX - d.startX);
+      const h = Math.abs(d.curY - d.startY);
+      ctx.save();
+      ctx.fillStyle = 'rgba(76,141,255,.14)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#4c8dff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(x, y, w, h);
+      ctx.setLineDash([]);
+      const label = `${Math.round(w)} × ${Math.round(h)}`;
+      ctx.font = '600 11px -apple-system,"PingFang SC",sans-serif';
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = 'rgba(15,17,22,.9)';
+      roundRect(ctx, x, y - 22, tw + 14, 18, 5);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 7, y - 13);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function renderAnnotations(layers, W, H) {
+    if (!state.annotations.length) return;
+
+    const items = [];
+
+    for (const layer of layers) {
+      const r = fitRect(layer, W, H);
+      const isFocus = layer.id === state.activeId;
+      const anns = state.annotations.filter(a => a.layerId === layer.id);
+
+      for (const ann of anns) {
+        const idx = state.annotations.indexOf(ann);
+        const ax = r.x + ann.x * r.w;
+        const ay = r.y + ann.y * r.h;
+        const aw = ann.w * r.w;
+        const ah = ann.h * r.h;
+        const selected = ann.id === state.selectedAnnId;
+
+        items.push({
+          ann, idx, ax, ay, aw, ah, selected, isFocus, layerId: layer.id
+        });
+      }
+    }
+
+    items.sort((a, b) => {
+      const sa = (a.selected ? 4 : 0) + (a.isFocus ? 2 : 0);
+      const sb = (b.selected ? 4 : 0) + (b.isFocus ? 2 : 0);
+      return sa - sb;
+    });
+
+    const placedBubbles = [];
+
+    for (const it of items) {
+      const { ann, idx, ax, ay, aw, ah, selected, isFocus } = it;
+      const layerAlpha = isFocus ? 1 : 0.42;
+
+      ctx.save();
+      ctx.globalAlpha = layerAlpha;
+
+      ctx.fillStyle = hexToRgba(ann.color, selected ? 0.22 : 0.10);
+      ctx.fillRect(ax, ay, aw, ah);
+
+      ctx.strokeStyle = ann.color;
+      ctx.lineWidth = selected ? 3 : 2;
+      if (selected) {
+        ctx.setLineDash([7, 4]);
+        ctx.shadowColor = ann.color;
+        ctx.shadowBlur = 12;
+      }
+      ctx.strokeRect(ax, ay, aw, ah);
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
+
+      const badgeR = selected ? 13 : 11;
+      const bx = ax + badgeR * 0.75;
+      const by = ay + badgeR * 0.75;
+      ctx.fillStyle = ann.color;
+      ctx.shadowColor = 'rgba(0,0,0,.55)';
+      ctx.shadowBlur = selected ? 10 : 6;
+      ctx.beginPath();
+      ctx.arc(bx, by, badgeR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (selected) {
+        ctx.strokeStyle = 'rgba(255,255,255,.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(bx, by, badgeR + 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${selected ? 12 : 11}px -apple-system,"PingFang SC",sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(idx + 1), bx, by + 0.5);
+      ctx.restore();
+
+      if (ann.text) {
+        ctx.save();
+        ctx.font = '500 11.5px -apple-system,"PingFang SC",sans-serif';
+
+        const maxTextW = 220;
+        const lines = wrapText(ctx, ann.text, maxTextW);
+        const lineH = 16;
+        const padX = 10, padY = 8;
+        let bw = 0;
+        for (const ln of lines) bw = Math.max(bw, ctx.measureText(ln).width);
+        bw += padX * 2 + 6;
+        const bh = lines.length * lineH + padY * 2;
+
+        let bxp = ax;
+        let byp = ay + ah + 10;
+
+        if (bxp + bw > W - 8) bxp = Math.max(8, W - bw - 8);
+        if (bxp < 8) bxp = 8;
+
+        if (byp + bh > H - 8) byp = ay - bh - 10;
+        if (byp < 8) {
+          byp = ay + ah + 10;
+          if (byp + bh > H - 8) byp = Math.max(8, H - bh - 8);
+        }
+
+        for (let tries = 0; tries < 12; tries++) {
+          let hit = false;
+          for (const pb of placedBubbles) {
+            if (bxp < pb.x + pb.w && bxp + bw > pb.x &&
+                byp < pb.y + pb.h && byp + bh > pb.y) {
+              hit = true;
+              break;
+            }
+          }
+          if (!hit) break;
+          byp += bh + 6;
+          if (byp + bh > H - 8) {
+            byp = Math.max(8, ay - bh - 10);
+            break;
+          }
+        }
+        placedBubbles.push({ x: bxp, y: byp, w: bw, h: bh });
+
+        let bubbleAlpha;
+        if (isFocus) {
+          bubbleAlpha = selected ? 1 : 0.9;
+        } else {
+          bubbleAlpha = selected ? 0.7 : 0.45;
+        }
+        ctx.globalAlpha = bubbleAlpha;
+
+        ctx.shadowColor = 'rgba(0,0,0,.55)';
+        ctx.shadowBlur = selected ? 16 : 10;
+        ctx.shadowOffsetY = selected ? 3 : 2;
+
+        ctx.fillStyle = selected ? 'rgba(14,16,22,.97)' : 'rgba(14,16,22,.9)';
+        roundRect(ctx, bxp, byp, bw, bh, 8);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        ctx.strokeStyle = ann.color;
+        ctx.lineWidth = selected ? 2.2 : 1.2;
+        ctx.stroke();
+
+        if (selected) {
+          ctx.save();
+          ctx.shadowColor = ann.color;
+          ctx.shadowBlur = 10;
+          ctx.strokeStyle = hexToRgba(ann.color, 0.7);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.save();
+        roundRect(ctx, bxp + 1, byp + 1, 4, bh - 2, 3);
+        ctx.fillStyle = ann.color;
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = selected ? '#ffffff' : '#dfe3ec';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        lines.forEach((ln, i) => {
+          ctx.fillText(ln, bxp + padX + 6, byp + padY + i * lineH + 1);
+        });
+
+        if (selected) {
+          const anchorX = Math.max(bxp, Math.min(ax + aw / 2, bxp + bw));
+          const anchorY = byp > ay + ah ? byp : byp + bh;
+          ctx.strokeStyle = ann.color;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(ax + aw / 2, ay + ah);
+          ctx.lineTo(anchorX, anchorY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.restore();
+      }
+    }
+  }
+
+  function wrapText(c, text, maxW) {
+    const lines = [];
+    const paras = String(text).split('\n');
+    for (const para of paras) {
+      if (!para) { lines.push(''); continue; }
+      let cur = '';
+      for (const ch of para) {
+        const test = cur + ch;
+        if (c.measureText(test).width > maxW && cur) {
+          lines.push(cur);
+          cur = ch;
+        } else {
+          cur = test;
+        }
+      }
+      if (cur) lines.push(cur);
+    }
+    return lines;
+  }
+
+  function renderSideBySide(layers, W, H) {
+    const n = layers.length;
+    const gap = 10;
+    const cellW = (W - gap * (n + 1)) / n;
+    const cellH = H - gap * 2;
+
+    layers.forEach((layer, i) => {
+      const cx = gap + i * (cellW + gap);
+      const cy = gap;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,.035)';
+      roundRect(ctx, cx, cy, cellW, cellH, 8);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.06)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      const img = layer.img;
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const s = Math.min(cellW / iw, cellH / ih) * 0.9;
+      const w = iw * s, h = ih * s;
+      const x = cx + (cellW - w) / 2;
+      const y = cy + (cellH - h) / 2;
+
+      ctx.save();
+      ctx.globalAlpha = layer.opacity;
+      ctx.drawImage(img, x, y, w, h);
+      ctx.restore();
+
+      ctx.save();
+      ctx.font = '600 12px -apple-system,"PingFang SC",sans-serif';
+      const tw = ctx.measureText(layer.name).width;
+      ctx.fillStyle = 'rgba(10,12,16,.78)';
+      roundRect(ctx, cx + 8, cy + 8, tw + 18, 22, 6);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(layer.name, cx + 17, cy + 19.5);
+      ctx.restore();
+    });
+  }
+
+  function renderSlider(layers, W, H) {
+    if (layers.length < 2) { renderStack(layers, W, H); return; }
+    const base = layers[0];
+    const top = layers.find(l => l.id === state.activeId) || layers[layers.length - 1];
+    const rb = fitRectScreen(base, W, H);
+    const rt = fitRectScreen(top, W, H);
+    const splitX = W * state.slider;
+
+    ctx.save();
+    ctx.globalAlpha = base.opacity;
+    ctx.drawImage(base.img, rb.x, rb.y, rb.w, rb.h);
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, splitX, H);
+    ctx.clip();
+    ctx.globalAlpha = top.opacity;
+    ctx.drawImage(top.img, rt.x, rt.y, rt.w, rt.h);
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = '#4c8dff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(splitX, 0); ctx.lineTo(splitX, H); ctx.stroke();
+    ctx.fillStyle = '#4c8dff';
+    ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(splitX, H / 2, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('⇔', splitX, H / 2 + 1);
+    ctx.restore();
+
+    drawCornerLabel(12, 12, base.name);
+    drawCornerLabel(W - 12 - measureLabel(top.name), 12, top.name);
+  }
+
+  function renderBlink(layers, W, H) {
+    if (layers.length < 2) { renderStack(layers, W, H); return; }
+    const base = layers[0];
+    const top = layers.find(l => l.id === state.activeId) || layers[layers.length - 1];
+    const layer = state.blinkOn ? top : base;
+
+    ctx.save();
+    applyView();
+    const r = fitRect(layer, W, H);
+    ctx.globalAlpha = layer.opacity;
+    ctx.drawImage(layer.img, r.x, r.y, r.w, r.h);
+    ctx.restore();
+
+    const label = state.blinkOn ? '▲ ' + top.name : '▼ ' + base.name;
+    ctx.save();
+    ctx.font = '600 13px -apple-system,"PingFang SC",sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(10,12,16,.82)';
+    roundRect(ctx, (W - tw - 24) / 2, H - 46, tw + 24, 28, 8);
+    ctx.fill();
+    ctx.fillStyle = state.blinkOn ? '#22d3a7' : '#8b93a7';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, W / 2, H - 31.5);
+    ctx.restore();
+  }
+
+  function applyView() {
+    ctx.translate(state.view.x, state.view.y);
+    ctx.scale(state.view.zoom, state.view.zoom);
+  }
+
+  function fitRect(layer, W, H) {
+    const img = layer.img;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const pad = 24;
+    const base = Math.min((W - pad * 2) / iw, (H - pad * 2) / ih);
+    const s = base * (layer.scale || 1);
+    const w = iw * s, h = ih * s;
+    return {
+      x: (W - w) / 2 + (layer.offsetX || 0),
+      y: (H - h) / 2 + (layer.offsetY || 0),
+      w, h,
+    };
+  }
+
+  function fitRectScreen(layer, W, H) {
+    const img = layer.img;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const pad = 24;
+    const s = Math.min((W - pad * 2) / iw, (H - pad * 2) / ih) * (layer.scale || 1);
+    const w = iw * s, h = ih * s;
+    return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function measureLabel(text) {
+    ctx.save();
+    ctx.font = '600 12px -apple-system,"PingFang SC",sans-serif';
+    const w = ctx.measureText(text).width;
+    ctx.restore();
+    return w + 18;
+  }
+
+  function drawCornerLabel(x, y, text) {
+    ctx.save();
+    ctx.font = '600 12px -apple-system,"PingFang SC",sans-serif';
+    const tw = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(10,12,16,.78)';
+    roundRect(ctx, x, y, tw + 18, 22, 6);
+    ctx.fill();
+    ctx.fillStyle = '#e7e9f0';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + 9, y + 11.5);
+    ctx.restore();
+  }
+
+  function drawEmptyHint(W, H) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(139,147,167,.55)';
+    ctx.font = '14px -apple-system,"PingFang SC",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('拖拽图片到此处，或点击左侧「添加图片」/「示例」', W / 2, H / 2);
+    ctx.restore();
+  }
+
+  function updateModeHint(count) {
+    let t = '';
+    if (state.annotating) {
+      t = '批注模式：左键圈选区域 → 输入整改内容';
+      modeHintEl.classList.add('ann');
+    } else {
+      modeHintEl.classList.remove('ann');
+      if (state.mode === 'overlay') {
+        if (count < 2) {
+          t = '添加 2 张以上图片即可对比';
+        } else if (state.liveDiff) {
+          t = '拖动焦点图层 · 差异热力图实时刷新 · 中键平移视图';
+        } else {
+          t = '两张图纸半透明叠加 · 拖动上层肉眼对比 · 打开「差异热力图」看像素差异';
+        }
+      }
+      else if (state.mode === 'side') t = '并排展示所有可见图层';
+      else if (state.mode === 'slider') t = count < 2 ? '至少需要 2 张图' : '拖动分割线 · 左侧为对比层';
+      else if (state.mode === 'blink') t = count < 2 ? '至少需要 2 张图' : '自动交替闪烁 · 点击图层切换对比层';
+    }
+    modeHintEl.textContent = t;
+  }
+
+  function screenToCanvas(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left - state.view.x) / state.view.zoom,
+      y: (e.clientY - rect.top - state.view.y) / state.view.zoom,
+    };
+  }
+
+  function hitTestAnn(cx, cy) {
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    const visible = state.layers.filter(l => l.visible && l.img);
+    for (let k = visible.length - 1; k >= 0; k--) {
+      const layer = visible[k];
+      const r = fitRect(layer, W, H);
+      const anns = state.annotations.filter(a => a.layerId === layer.id);
+      for (let j = anns.length - 1; j >= 0; j--) {
+        const ann = anns[j];
+        const ax = r.x + ann.x * r.w;
+        const ay = r.y + ann.y * r.h;
+        const aw = ann.w * r.w;
+        const ah = ann.h * r.h;
+        if (cx >= ax && cx <= ax + aw && cy >= ay && cy <= ay + ah) return ann;
+      }
+    }
+    return null;
+  }
+
+  /* ========================================================
+   *  批注编辑器
+   * ======================================================== */
+  function openAnnEditor(annId, geometry) {
+    state._editAnnId = annId || null;
+    state._editGeometry = geometry || null;
+
+    if (annId) {
+      const ann = state.annotations.find(a => a.id === annId);
+      if (!ann) return;
+      annModalTitle.textContent = '编辑批注';
+      annTextEl.value = ann.text;
+      annDeleteBtn.hidden = false;
+      annTextEl.placeholder = '修改整改内容...';
+    } else {
+      annModalTitle.textContent = '新建批注';
+      annTextEl.value = '';
+      annDeleteBtn.hidden = true;
+      annTextEl.placeholder = '请输入整改内容、问题描述或备注...';
+    }
+    annModal.hidden = false;
+    setTimeout(() => annTextEl.focus(), 50);
+  }
+
+  function closeAnnEditor() {
+    annModal.hidden = true;
+    state._editAnnId = null;
+    state._editGeometry = null;
+    annTextEl.value = '';
+  }
+
+  document.getElementById('annSaveBtn').addEventListener('click', () => {
+    const text = annTextEl.value.trim();
+    if (!text) { annTextEl.focus(); return; }
+
+    if (state._editAnnId) {
+      const ann = state.annotations.find(a => a.id === state._editAnnId);
+      if (ann) ann.text = text;
+    } else if (state._editGeometry) {
+      const g = state._editGeometry;
+      const color = ANN_COLORS[state.annotations.length % ANN_COLORS.length];
+      const ann = {
+        id: 'A' + (++annUid),
+        layerId: g.layerId,
+        x: g.x, y: g.y, w: g.w, h: g.h,
+        text,
+        color,
+        createdAt: Date.now(),
+      };
+      state.annotations.push(ann);
+      state.selectedAnnId = ann.id;
+    }
+    closeAnnEditor();
+    renderLayerList();
+    renderAnnList();
+    render();
+  });
+
+  document.getElementById('annCancelBtn').addEventListener('click', closeAnnEditor);
+  document.getElementById('annCloseBtn').addEventListener('click', closeAnnEditor);
+  annDeleteBtn.addEventListener('click', () => {
+    if (!state._editAnnId) return;
+    state.annotations = state.annotations.filter(a => a.id !== state._editAnnId);
+    if (state.selectedAnnId === state._editAnnId) state.selectedAnnId = null;
+    closeAnnEditor();
+    renderLayerList();
+    renderAnnList();
+    render();
+  });
+
+  annModal.addEventListener('mousedown', e => {
+    if (e.target === annModal) closeAnnEditor();
+  });
+
+  annTextEl.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('annSaveBtn').click();
+    }
+    if (e.key === 'Escape') closeAnnEditor();
+  });
+
+  /* ========================================================
+   *  批注列表
+   * ======================================================== */
+  function renderAnnList() {
+    annListEl.innerHTML = '';
+    annCntEl.textContent = String(state.annotations.length);
+
+    if (!state.annotations.length) {
+      const tip = document.createElement('div');
+      tip.className = 'empty-tip';
+      tip.innerHTML = '暂无批注<br>点击顶部「✏ 批注」开启<br>然后在画布上圈选区域';
+      annListEl.appendChild(tip);
+      return;
+    }
+
+    state.annotations.forEach((ann, idx) => {
+      const layer = state.layers.find(l => l.id === ann.layerId);
+      const el = document.createElement('div');
+      el.className = 'ann-item' + (ann.id === state.selectedAnnId ? ' active' : '');
+      el.dataset.id = ann.id;
+
+      el.innerHTML = `
+        <span class="ann-badge" style="background:${ann.color}">${idx + 1}</span>
+        <div class="ann-body">
+          <div class="ann-text">${escapeHtml(ann.text)}</div>
+          <div class="ann-meta">
+            <span class="ann-layer-tag" title="${escapeHtml(layer ? layer.name : '（已删除）')}">
+              ${escapeHtml(layer ? layer.name : '（已删除）')}
+            </span>
+          </div>
+        </div>
+        <button class="ann-del" title="删除">✕</button>
+      `;
+
+      el.addEventListener('click', e => {
+        if (e.target.closest('.ann-del')) {
+          state.annotations = state.annotations.filter(a => a.id !== ann.id);
+          if (state.selectedAnnId === ann.id) state.selectedAnnId = null;
+          renderAnnList();
+          render();
+          return;
+        }
+        state.selectedAnnId = ann.id;
+        if (layer) {
+          state.activeId = layer.id;
+          renderLayerList();
+        }
+        renderAnnList();
+        render();
+        openAnnEditor(ann.id, null);
+      });
+
+      annListEl.appendChild(el);
+    });
+  }
+
+  /* ========================================================
+   *  图层操作
+   * ======================================================== */
+  function addLayer(img, name) {
+    const layer = {
+      id: 'L' + (++uid),
+      name: name || ('图层 ' + uid),
+      img,
+      visible: true,
+      opacity: 1,
+      blendMode: 'normal',
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+    };
+    state.layers.push(layer);
+    state.activeId = layer.id;
+    return layer;
+  }
+
+  function moveLayer(id, dir) {
+    const i = state.layers.findIndex(l => l.id === id);
+    if (i < 0) return;
+    const j = i + dir;
+    if (j < 0 || j >= state.layers.length) return;
+    [state.layers[i], state.layers[j]] = [state.layers[j], state.layers[i]];
+    scheduleFinalDiff();
+  }
+
+  function loadImage(src, name) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        addLayer(img, name);
+        renderLayerList();
+        render();
+        scheduleFinalDiff();
+        resolve();
+      };
+      img.onerror = () => { console.warn('图片加载失败:', name); resolve(); };
+      img.src = src;
+    });
+  }
+
+  async function handleFiles(files) {
+    const list = Array.from(files).filter(f => f.type.startsWith('image/'));
+    for (const f of list) {
+      const url = URL.createObjectURL(f);
+      await loadImage(url, f.name.replace(/\.[^.]+$/, ''));
+    }
+  }
+
+  function generateDemo() {
+    function mk(draw) {
+      const c = document.createElement('canvas');
+      c.width = 900; c.height = 650;
+      const x = c.getContext('2d');
+      draw(x, c.width, c.height);
+      return c.toDataURL('image/png');
+    }
+    function common(x, w, h) {
+      const g = x.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#12203a');
+      g.addColorStop(1, '#3a1230');
+      x.fillStyle = g;
+      x.fillRect(0, 0, w, h);
+      x.strokeStyle = 'rgba(255,255,255,.06)';
+      x.lineWidth = 1;
+      for (let i = 0; i <= w; i += 50) {
+        x.beginPath(); x.moveTo(i + .5, 0); x.lineTo(i + .5, h); x.stroke();
+      }
+      for (let j = 0; j <= h; j += 50) {
+        x.beginPath(); x.moveTo(0, j + .5); x.lineTo(w, j + .5); x.stroke();
+      }
+    }
+    const a = mk((x, w, h) => {
+      common(x, w, h);
+      x.fillStyle = '#ffd166';
+      x.beginPath(); x.arc(340, 300, 130, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#22d3a7';
+      x.fillRect(560, 200, 180, 260);
+      x.fillStyle = '#ffffff';
+      x.font = 'bold 64px sans-serif';
+      x.fillText('VERSION A', 120, 570);
+    });
+    const b = mk((x, w, h) => {
+      common(x, w, h);
+      x.fillStyle = '#ffd166';
+      x.beginPath(); x.arc(400, 330, 130, 0, Math.PI * 2); x.fill();
+      x.fillStyle = '#22d3a7';
+      x.fillRect(560, 200, 180, 260);
+      x.fillStyle = '#ffffff';
+      x.font = 'bold 64px sans-serif';
+      x.fillText('VERSION B', 120, 570);
+    });
+    return [
+      { url: a, name: '基准图 A' },
+      { url: b, name: '浮动图 B（可拖动）' },
+    ];
+  }
+
+  async function loadDemo() {
+    const demo = generateDemo();
+    for (let i = 0; i < demo.length; i++) {
+      await loadImage(demo[i].url, demo[i].name);
+    }
+    // ★ 上层图层默认设半透明，方便关闭差异热力图时肉眼叠加对比
+    if (state.layers.length >= 2) {
+      state.layers[state.layers.length - 1].opacity = OVERLAY_ALPHA;
+      renderLayerList();
+      render();
+    }
+  }
+
+  const BLEND_OPTIONS = [
+    ['normal', '正常'], ['difference', '差值'], ['multiply', '正片叠底'],
+    ['screen', '滤色'], ['overlay', '叠加'], ['darken', '变暗'],
+    ['lighten', '变亮'], ['exclusion', '排除'],
+  ];
+
+  function renderLayerList() {
+    layerListEl.innerHTML = '';
+    layerCntEl.textContent = String(state.layers.length);
+
+    if (!state.layers.length) {
+      const tip = document.createElement('div');
+      tip.className = 'empty-tip';
+      tip.innerHTML = '暂无图层<br>拖拽图片到右侧画布<br>或点击上方按钮添加';
+      layerListEl.appendChild(tip);
+      return;
+    }
+
+    const normalCount = state.layers.length;
+    // ★ 淡化状态仅在差异热力图开启时才显示
+    const applyFocus = state.liveDiff
+      && state.focusMode
+      && state.activeId
+      && normalCount > 1
+      && state.mode === 'overlay';
+    const arr = [...state.layers].reverse();
+
+    arr.forEach(layer => {
+      const isActive = layer.id === state.activeId;
+      const isDimmed = applyFocus && !isActive;
+      const annCount = state.annotations.filter(a => a.layerId === layer.id).length;
+
+      const el = document.createElement('div');
+      el.className = 'layer-item'
+        + (isActive ? ' active' : '')
+        + (isDimmed ? ' dimmed' : '');
+      el.dataset.id = layer.id;
+
+      const opts = BLEND_OPTIONS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+      const badges = (isActive && normalCount > 1)
+        ? '<span class="badge-focus">焦点</span>' : '';
+
+      el.innerHTML = `
+        <div class="layer-head">
+          <button class="btn-vis ${layer.visible ? 'on' : ''}" data-act="vis"
+                  title="${layer.visible ? '隐藏' : '显示'}">${layer.visible ? '●' : '○'}</button>
+          <img class="thumb" src="${layer.img.src}" alt="">
+          <div class="layer-title">
+            ${escapeHtml(layer.name)}${badges}
+            ${annCount ? `<span class="badge-focus" style="background:rgba(168,85,247,.25);color:#d8b4fe;">${annCount}批</span>` : ''}
+          </div>
+          <div class="layer-order">
+            <button data-act="up"   title="上移">▲</button>
+            <button data-act="down" title="下移">▼</button>
+            <button data-act="del"  title="删除">✕</button>
+          </div>
+        </div>
+        <div class="layer-body">
+          <label class="row">
+            <span>混合</span>
+            <select data-act="blend">${opts}</select>
+          </label>
+          <label class="row">
+            <span>透明</span>
+            <input type="range" min="0" max="1" step="0.01" value="${layer.opacity}" data-act="opacity">
+            <b>${Math.round(layer.opacity * 100)}%</b>
+          </label>
+          <label class="row">
+            <span>缩放</span>
+            <input type="range" min="0.2" max="3" step="0.01" value="${layer.scale}" data-act="scale">
+            <b>${Math.round(layer.scale * 100)}%</b>
+          </label>
+        </div>
+      `;
+
+      el.querySelector('[data-act="blend"]').value = layer.blendMode;
+      layerListEl.appendChild(el);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, m => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
+    ));
+  }
+
+  layerListEl.addEventListener('click', e => {
+    const item = e.target.closest('.layer-item');
+    if (!item) return;
+    const layer = state.layers.find(l => l.id === item.dataset.id);
+    if (!layer) return;
+
+    const btn = e.target.closest('button[data-act]');
+    if (btn) {
+      const act = btn.dataset.act;
+      if (act === 'vis')  layer.visible = !layer.visible;
+      if (act === 'up')   moveLayer(layer.id, 1);
+      if (act === 'down') moveLayer(layer.id, -1);
+      if (act === 'del') {
+        state.layers = state.layers.filter(l => l.id !== layer.id);
+        state.annotations = state.annotations.filter(a => a.layerId !== layer.id);
+        if (state.activeId === layer.id) {
+          state.activeId = state.layers.length ? state.layers[state.layers.length - 1].id : null;
+        }
+        renderAnnList();
+      }
+      renderLayerList();
+      render();
+      scheduleFinalDiff();
+      return;
+    }
+
+    if (e.target.closest('input, select, label')) return;
+    state.activeId = layer.id;
+    renderLayerList();
+    render();
+  });
+
+  layerListEl.addEventListener('input', e => {
+    const act = e.target.dataset.act;
+    if (act !== 'opacity' && act !== 'scale') return;
+    const item = e.target.closest('.layer-item');
+    const layer = state.layers.find(l => l.id === item.dataset.id);
+    if (!layer) return;
+
+    const v = parseFloat(e.target.value);
+    if (act === 'opacity') layer.opacity = v;
+    if (act === 'scale')   layer.scale = v;
+
+    const b = e.target.parentElement.querySelector('b');
+    if (b) b.textContent = Math.round(v * 100) + '%';
+
+    render();
+    scheduleDiffUpdate(false);
+  });
+
+  layerListEl.addEventListener('change', e => {
+    const act = e.target.dataset.act;
+    if (act !== 'blend') return;
+    const item = e.target.closest('.layer-item');
+    const layer = state.layers.find(l => l.id === item.dataset.id);
+    if (!layer) return;
+    layer.blendMode = e.target.value;
+    render();
+  });
+
+  document.querySelectorAll('.side-tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.side-tabs button').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      const tab = btn.dataset.tab;
+      document.getElementById(tab === 'layers' ? 'panelLayers' : 'panelAnns').classList.add('active');
+    });
+  });
+
+  function setMode(mode) {
+    state.mode = mode;
+    document.querySelectorAll('#modeSeg button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    if (mode === 'overlay') {
+      scheduleFinalDiff();
+    } else {
+      state.diffImage = null;
+      updateLegend(false);
+    }
+    updateFocusCtrlState();
+    syncBlink();
+    renderLayerList();
+    render();
+  }
+
+  document.querySelectorAll('#modeSeg button').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  focusToggle.addEventListener('click', () => {
+    if (focusToggle.disabled) return;
+    state.focusMode = !state.focusMode;
+    focusToggle.textContent = '聚焦 ' + (state.focusMode ? 'ON' : 'OFF');
+    focusToggle.classList.toggle('on', state.focusMode);
+    renderLayerList();
+    render();
+  });
+
+  dimSlider.addEventListener('input', () => {
+    state.dimFactor = parseFloat(dimSlider.value);
+    dimVal.textContent = Math.round(state.dimFactor * 100) + '%';
+    renderLayerList();
+    render();
+  });
+
+  // ★ 差异热力图开关
+  liveToggle.addEventListener('click', () => {
+    state.liveDiff = !state.liveDiff;
+    liveToggle.textContent = '差异热力图 ' + (state.liveDiff ? 'ON' : 'OFF');
+    liveToggle.classList.toggle('live-on', state.liveDiff);
+    liveToggle.classList.toggle('btn-ghost', !state.liveDiff);
+
+    updateFocusCtrlState();
+
+    if (state.liveDiff) {
+      scheduleFinalDiff();
+      updateLegend(true);
+    } else {
+      if (state._diffRAF) { cancelAnimationFrame(state._diffRAF); state._diffRAF = null; }
+      state.diffImage = null;
+      state.diffBaseName = '—';
+      updateLegend(false);
+    }
+    renderLayerList();
+    render();
+  });
+
+  annotateToggle.addEventListener('click', () => {
+    state.annotating = !state.annotating;
+    annotateToggle.textContent = '✏ 批注 ' + (state.annotating ? 'ON' : 'OFF');
+    annotateToggle.classList.toggle('ann-on', state.annotating);
+    annotateToggle.classList.toggle('btn', !state.annotating);
+    canvas.classList.toggle('ann-mode', state.annotating);
+    if (state.annotating && state.mode !== 'overlay') {
+      setMode('overlay');
+    }
+    render();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    state.view = { x: 0, y: 0, zoom: 1 };
+    render();
+  });
+
+  document.getElementById('btnFit').addEventListener('click', () => {
+    state.view = { x: 0, y: 0, zoom: 1 };
+    state.layers.forEach(l => { l.scale = 1; l.offsetX = 0; l.offsetY = 0; });
+    renderLayerList();
+    render();
+    scheduleFinalDiff();
+  });
+
+  document.getElementById('btnAdd').addEventListener('click', () => fileInput.click());
+  document.getElementById('btnDemo').addEventListener('click', loadDemo);
+
+  fileInput.addEventListener('change', e => {
+    handleFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  thSlider.addEventListener('input', () => {
+    state.diffThreshold = parseFloat(thSlider.value);
+    thVal.textContent = Math.round(state.diffThreshold * 100) + '%';
+  });
+
+  thSlider.addEventListener('change', () => {
+    scheduleFinalDiff();
+  });
+
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const oldZoom = state.view.zoom;
+    const factor = Math.exp(-e.deltaY * 0.0015);
+    const newZoom = clamp(oldZoom * factor, 0.1, 12);
+
+    state.view.x = mx - (mx - state.view.x) * (newZoom / oldZoom);
+    state.view.y = my - (my - state.view.y) * (newZoom / oldZoom);
+    state.view.zoom = newZoom;
+
+    render();
+  }, { passive: false });
+
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+
+    if (e.button === 1) {
+      e.preventDefault();
+      state.dragging = 'pan';
+      state.dragStart = {
+        x: e.clientX, y: e.clientY,
+        vx: state.view.x, vy: state.view.y,
+      };
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+
+    if (state.annotating && e.button === 0) {
+      const p = screenToCanvas(e);
+
+      const hit = hitTestAnn(p.x, p.y);
+      if (hit) {
+        state.selectedAnnId = hit.id;
+        if (hit.layerId !== state.activeId) {
+          state.activeId = hit.layerId;
+          renderLayerList();
+        }
+        renderAnnList();
+        render();
+        openAnnEditor(hit.id, null);
+        return;
+      }
+
+      const layer = state.layers.find(l => l.id === state.activeId && l.visible && l.img);
+      if (!layer) {
+        showHint('请先在左侧选择一个图层作为批注目标');
+        return;
+      }
+
+      state.drawingAnn = {
+        startX: p.x, startY: p.y,
+        curX: p.x, curY: p.y,
+        layerId: layer.id,
+      };
+      canvas.style.cursor = 'crosshair';
+      render();
+      return;
+    }
+
+    if (state.mode === 'slider') {
+      state.dragging = 'slider';
+      state.slider = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+      canvas.style.cursor = 'ew-resize';
+      render();
+      return;
+    }
+    if (state.mode === 'side') return;
+
+    if (e.button === 0 && state.mode === 'overlay') {
+      const layer = state.layers.find(l => l.id === state.activeId && l.visible && l.img);
+      if (layer) {
+        state.dragging = 'layer';
+        state.dragStart = {
+          x: e.clientX, y: e.clientY,
+          ox: layer.offsetX || 0,
+          oy: layer.offsetY || 0,
+          layerId: layer.id,
+        };
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+    }
+
+    state.dragging = 'pan';
+    state.dragStart = {
+      x: e.clientX, y: e.clientY,
+      vx: state.view.x, vy: state.view.y,
+    };
+    canvas.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (state.drawingAnn) {
+      const p = screenToCanvas(e);
+      state.drawingAnn.curX = p.x;
+      state.drawingAnn.curY = p.y;
+      render();
+      return;
+    }
+
+    if (!state.dragging) return;
+    const rect = canvas.getBoundingClientRect();
+
+    if (state.dragging === 'slider') {
+      state.slider = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+      render();
+      return;
+    }
+
+    if (state.dragging === 'pan') {
+      state.view.x = state.dragStart.vx + (e.clientX - state.dragStart.x);
+      state.view.y = state.dragStart.vy + (e.clientY - state.dragStart.y);
+      render();
+      return;
+    }
+
+    if (state.dragging === 'layer') {
+      const layer = state.layers.find(l => l.id === state.dragStart.layerId);
+      if (!layer) return;
+      const z = state.view.zoom || 1;
+      const dx = (e.clientX - state.dragStart.x) / z;
+      const dy = (e.clientY - state.dragStart.y) / z;
+      layer.offsetX = state.dragStart.ox + dx;
+      layer.offsetY = state.dragStart.oy + dy;
+      render();
+      scheduleDiffUpdate(false);
+    }
+  });
+
+  window.addEventListener('mouseup', e => {
+    if (state.drawingAnn) {
+      const d = state.drawingAnn;
+      const W = canvas.clientWidth;
+      const H = canvas.clientHeight;
+      const x = Math.min(d.startX, d.curX);
+      const y = Math.min(d.startY, d.curY);
+      const w = Math.abs(d.curX - d.startX);
+      const h = Math.abs(d.curY - d.startY);
+      state.drawingAnn = null;
+      canvas.style.cursor = state.annotating ? 'crosshair' : '';
+
+      if (w > 14 && h > 14) {
+        const layer = state.layers.find(l => l.id === d.layerId);
+        if (layer) {
+          const r = fitRect(layer, W, H);
+          const nx = clamp((x - r.x) / r.w, 0, 1);
+          const ny = clamp((y - r.y) / r.h, 0, 1);
+          const nw = clamp(w / r.w, 0, 1 - nx);
+          const nh = clamp(h / r.h, 0, 1 - ny);
+          openAnnEditor(null, { layerId: layer.id, x: nx, y: ny, w: nw, h: nh });
+        }
+      }
+      render();
+      return;
+    }
+
+    const wasLayerDrag = state.dragging === 'layer';
+    state.dragging = null;
+    canvas.style.cursor = state.annotating ? 'crosshair' : '';
+    if (wasLayerDrag) {
+      scheduleFinalDiff();
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (state.drawingAnn) {
+        state.drawingAnn = null;
+        render();
+      }
+    }
+    if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      annotateToggle.click();
+    }
+  });
+
+  canvasWrap.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    canvasWrap.classList.add('drag');
+  });
+  canvasWrap.addEventListener('dragleave', e => {
+    if (e.target === canvasWrap) canvasWrap.classList.remove('drag');
+  });
+  canvasWrap.addEventListener('drop', e => {
+    e.preventDefault();
+    canvasWrap.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      handleFiles(e.dataTransfer.files);
+    }
+  });
+
+  function syncBlink() {
+    if (state.mode === 'blink') {
+      if (!blinkTimer) {
+        blinkTimer = setInterval(() => {
+          state.blinkOn = !state.blinkOn;
+          render();
+        }, 550);
+      }
+    } else {
+      if (blinkTimer) { clearInterval(blinkTimer); blinkTimer = null; }
+      state.blinkOn = true;
+    }
+  }
+
+  let resizeRAF = null;
+  window.addEventListener('resize', () => {
+    if (resizeRAF) cancelAnimationFrame(resizeRAF);
+    resizeRAF = requestAnimationFrame(() => {
+      render();
+      scheduleFinalDiff();
+    });
+  });
+
+  /* ========================================================
+   *  启动
+   * ======================================================== */
+  renderLayerList();
+  renderAnnList();
+  render();
+  updateFocusCtrlState();
+  thVal.textContent = Math.round(state.diffThreshold * 100) + '%';
+  dimVal.textContent = Math.round(state.dimFactor * 100) + '%';
+  setTimeout(loadDemo, 120);
+
+})();
+</script>
+</body>
+</html>
