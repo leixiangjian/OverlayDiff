@@ -75,12 +75,15 @@ OverlayDiff 使用纯 HTML + CSS + JavaScript 构建，基于 Canvas 2D 进行�
 ### 本地服务器运行（可选）
 
 ```bash
+
 # Python 3
+
 python -m http.server 8080
 
 # 或 Node.js
+
 npx serve .
 
-
 ## 许可协议
-[Apache2.0](LICENSE)
+
+[Apache%202](LICENSE)
