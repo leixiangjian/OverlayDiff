@@ -58,6 +58,11 @@ OverlayDiff is built with pure HTML + CSS + JavaScript and rendered via the Canv
 - One-click reset view and fit-to-window
 - Real-time display of zoom level and layer count
 
+
+## 许可协议
+
+[Apache2.0](LICENSE)
+
 ## Quick Start
 
 ### Requirements
@@ -79,9 +84,3 @@ python -m http.server 8080
 
 # Or Node.js
 npx serve .
-
-```bash
-
-## 许可协议
-
-[Apache2.0](LICENSE)

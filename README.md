@@ -59,6 +59,10 @@ OverlayDiff 使用纯 HTML + CSS + JavaScript 构建，基于 Canvas 2D 进行�
 - 一键重置视图、适应窗口
 - 画布实时显示缩放比例与图层数量
 
+## 许可协议
+
+[Apache2.0](LICENSE)
+
 ## 快速开始
 
 ### 环境要求
@@ -84,8 +88,3 @@ python -m http.server 8080
 
 npx serve .
 
-```bash
-
-## 许可协议
-
-[Apache2.0](LICENSE)
