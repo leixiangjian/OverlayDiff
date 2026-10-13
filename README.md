@@ -85,5 +85,4 @@ python -m http.server 8080
 npx serve .
 
 ## 许可协议
-
-[Apache%202](LICENSE)
+[Apache2.0](LICENSE)

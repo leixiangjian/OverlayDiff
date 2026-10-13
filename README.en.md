@@ -1,7 +1,3 @@
-
-英文版 README.en.md：
-
-```markdown
 # OverlayDiff
 
 English | [中文](README.md)
