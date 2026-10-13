@@ -1,5 +1,7 @@
 # OverlayDiff
 
+中文 | [English](README.en.md)
+
 > 多图叠加对比 · 实时差异热力图 · 批注整改标注
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -78,3 +80,7 @@ python -m http.server 8080
 
 # 或 Node.js
 npx serve .
+
+
+## 许可协议
+[Apache2.0](LICENSE)
