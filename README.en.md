@@ -59,7 +59,7 @@ OverlayDiff is built with pure HTML + CSS + JavaScript and rendered via the Canv
 - Real-time display of zoom level and layer count
 
 
-## 许可协议
+## LICENSE
 
 [Apache2.0](LICENSE)
 
